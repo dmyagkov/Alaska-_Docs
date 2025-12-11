@@ -34,49 +34,50 @@ The solution's high-level architecture is depicted below. This design illustrate
 **Figure 1: High-Level Architecture**
 
 ```mermaid
+```mermaid
 graph TB
     subgraph "User / KMS Frontend"
-        USER[User Interface]
-        USER_ACTIONS["• Upload documents to GCS<br/>• Create workspace records<br/>• Trigger extraction DAG<br/>• Review extracted entities<br/>• Edit workspace data<br/>• Approve for production promotion"]
+        USER[User interface]
+        USER_ACTIONS["Upload documents to GCS\nCreate workspace records\nTrigger extraction DAG\nReview extracted entities\nEdit workspace data\nApprove for promotion"]
     end
 
     subgraph "Airflow DAG Orchestration Layer"
-        TASK1[Task 1: Preprocess Documents<br/>• Compute MD5 hashes<br/>• Query main DB for duplicates<br/>• Create DocumentNode objects]
-        TASK2[Task 2: Gemini Multimodal Extraction<br/>• ThreadPoolExecutor 5 workers<br/>• Load PDF/images as Part objects<br/>• Call Gemini with structured output<br/>• Extract Species, Practices, Relations]
-        TASK3[Task 3: Entity Mapping & Classification<br/>Phase A: Preprocessing<br/>Phase B: Species matching<br/>Phase C: Practice matching<br/>Phase D: Practice classification]
-        TASK4[Task 4: Save to Stage Database<br/>• Create Workspace node<br/>• MERGE entities with labels<br/>• CREATE relationships<br/>• Update PostgreSQL status]
+        TASK1["Task 1: Preprocess documents\nCompute MD5 hashes\nQuery main DB for duplicates\nCreate DocumentNode objects"]
+        TASK2["Task 2: Gemini multimodal extraction\nThreadPoolExecutor (5 workers)\nLoad PDF/images as Part objects\nCall Gemini with structured output\nExtract species, practices, relations"]
+        TASK3["Task 3: Entity mapping & classification\nPhase A: preprocessing\nPhase B: species matching\nPhase C: practice matching\nPhase D: practice classification"]
+        TASK4["Task 4: Save to stage database\nCreate Workspace node\nMERGE entities with labels\nCREATE relationships\nUpdate PostgreSQL status"]
 
-        TASK1 -->|XCom: DocumentNode[]| TASK2
-        TASK2 -->|XCom: ExtractionResult| TASK3
-        TASK3 -->|XCom: MatchedSpecies[]| TASK4
+        TASK1 -->|"XCom: DocumentNodes"| TASK2
+        TASK2 -->|"XCom: ExtractionResult"| TASK3
+        TASK3 -->|"XCom: MatchedSpecies list"| TASK4
     end
 
     subgraph "Data Layer"
-        MAIN_NEO4J[(Main Neo4j DB<br/>NEO4J_CONN<br/><br/>• Species<br/>• Practices<br/>• Taxonomy<br/>• Vector Indexes<br/><br/>READ ONLY)]
-        POSTGRES[(PostgreSQL KMS<br/>DB_CONN<br/><br/>workspace_analysis<br/>• stage<br/>• progress<br/>• errors<br/>• timestamps)]
-        STAGE_NEO4J[(Stage Neo4j DB<br/>NEO4J2_CONN<br/><br/>• Workspace<br/>• Species:REF<br/>• Practices<br/>• Categories<br/><br/>USER EDITABLE)]
+        MAIN_NEO4J["Main Neo4j DB\nNEO4J_CONN\nSpecies, practices, taxonomy, vectors\nREAD ONLY"]
+        POSTGRES["PostgreSQL KMS\nworkspace_analysis\nstage, progress, errors, timestamps"]
+        STAGE_NEO4J["Stage Neo4j DB\nNEO4J2_CONN\nWorkspace, Species:REFERENCE, Practices, Categories\nUSER EDITABLE"]
     end
 
     subgraph "External Services"
-        GCS[Google Cloud Storage]
-        VERTEX[Vertex AI<br/>• Gemini API<br/>• Embeddings]
-        LANGFUSE[Langfuse<br/>Optional Observability]
+        GCS["Google Cloud Storage"]
+        VERTEX["Vertex AI\nGemini API + embeddings"]
+        LANGFUSE["Langfuse\n(optional observability)"]
     end
 
-    USER -->|Trigger DAG| TASK1
-    USER -->|Query Results| STAGE_NEO4J
+    USER -->|"Trigger DAG"| TASK1
+    USER -->|"Query results"| STAGE_NEO4J
 
-    TASK1 -->|Read Schema & Reference Data| MAIN_NEO4J
-    TASK2 -->|Load Documents| GCS
-    TASK2 -->|API Calls| VERTEX
-    TASK2 -.->|Optional Tracing| LANGFUSE
-    TASK3 -->|Vector Search| MAIN_NEO4J
-    TASK3 -->|LLM Calls| VERTEX
-    TASK4 -->|Write Results| STAGE_NEO4J
-    TASK4 -->|Status Updates| POSTGRES
+    TASK1 -->|"Read schema & reference data"| MAIN_NEO4J
+    TASK2 -->|"Load documents"| GCS
+    TASK2 -->|"API calls"| VERTEX
+    TASK2 -.->|"Tracing"| LANGFUSE
+    TASK3 -->|"Vector search"| MAIN_NEO4J
+    TASK3 -->|"LLM calls"| VERTEX
+    TASK4 -->|"Write results"| STAGE_NEO4J
+    TASK4 -->|"Status updates"| POSTGRES
 
-    STAGE_NEO4J -.->|After User Review<br/>& Approval| PROMOTION[Promotion Workflow<br/>Manual, Separate]
-    PROMOTION -->|Validate & Transfer| MAIN_NEO4J
+    STAGE_NEO4J -.->|"After user review & approval"| PROMOTION["Promotion workflow\nManual, separate process"]
+    PROMOTION -->|"Validate & transfer"| MAIN_NEO4J
 
     style MAIN_NEO4J fill:#e1f5fe
     style STAGE_NEO4J fill:#fff3e0
