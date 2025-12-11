@@ -2565,3 +2565,8 @@ This architecture provides a scalable, maintainable foundation for knowledge ext
 **Last Updated**: December 10, 2024
 **Author**: Alaska Invasive Species Knowledge Management Team
 **Contact**: For technical questions, review Airflow logs or contact the development team
+
+<script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({startOnLoad: true});
+</script>
